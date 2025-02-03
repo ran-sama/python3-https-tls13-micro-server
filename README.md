@@ -151,11 +151,6 @@ You might enjoy dynv6, a fully free dynamic DNS provider that supports CAA recor
 https://github.com/ran-sama/python3-CAA-A-records-dynv6  
 https://github.com/ran-sama/python3-certbot-virtualenv-dynv6  
 
-## Automatic launching and cert renewal supported
-
-https://github.com/ran-sama/systemd-service-examples  
-https://github.com/ran-sama/python-3-certbot-virtualenv  
-
 ## Documentation
 
 https://docs.python.org/3.14/library/ssl.html  
