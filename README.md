@@ -147,14 +147,9 @@ Every 2nd even month:
 
 ## But I'd like DNS CAA and wildcard certs
 
-Cool, you might enjoy IONOS, or really any other company selling domains:
-```
-./acme.sh --issue --dns dns_ionos -d example.com -d *.example.com --keylength ec-384 -w /home/ran/.acmeweb/ --server letsencrypt --always-force-new-domain-key
-```
-Docs:
-```
-https://github.com/acmesh-official/acme.sh/blob/master/dnsapi/dns_ionos.sh
-```
+You might enjoy dynv6, a fully free dynamic DNS provider that supports CAA records:  
+https://github.com/ran-sama/python3-CAA-A-records-dynv6  
+https://github.com/ran-sama/python3-certbot-virtualenv-dynv6  
 
 ## Automatic launching and cert renewal supported
 
