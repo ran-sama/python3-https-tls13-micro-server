@@ -25,8 +25,8 @@ sslcontext.set_ecdh_curve("secp384r1")#works well with everything
 #sslcontext.verify_flags &= ~ssl.VERIFY_X509_STRICT
 #sslcontext.verify_flags |= ssl.VERIFY_X509_PARTIAL_CHAIN
 sslcontext.load_cert_chain(MYSERV_FULLCHAIN, MYSERV_PRIVKEY)
-#returns 2186428625 557056 for Python-3.13.2
-#print(sslcontext.options, sslcontext.verify_flags)
+#diagnostic data 2186428625 2 557056 for Python-3.13.2
+#print(sslcontext.options, sslcontext.verify_mode, sslcontext.verify_flags)
 
 class HSTSHandler(SimpleHTTPRequestHandler):
     def send_head(self):
