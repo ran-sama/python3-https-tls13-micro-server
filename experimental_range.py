@@ -16,14 +16,17 @@ sslcontext.options |= ssl.OP_NO_TICKET
 sslcontext.options |= ssl.OP_NO_COMPRESSION
 sslcontext.options |= ssl.OP_SINGLE_ECDH_USE
 sslcontext.options |= ssl.OP_IGNORE_UNEXPECTED_EOF
-#sslcontext.protocol = ssl.PROTOCOL_TLS
+sslcontext.options |= ssl.PROTOCOL_TLS_SERVER
 #sslcontext.verify_mode = ssl.CERT_REQUIRED
 sslcontext.set_ciphers("ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305")
 sslcontext.set_ecdh_curve("secp384r1")#works well with everything
 #sslcontext.set_ecdh_curve("secp521r1")#works well on firefox and wget but not aria2
 #sslcontext.load_verify_locations(MYSERV_CLIENTCRT)
-#sslcontext.verify_flags &= ~ssl.VERIFY_X509_PARTIAL_CHAIN
+#sslcontext.verify_flags &= ~ssl.VERIFY_X509_STRICT
+#sslcontext.verify_flags |= ssl.VERIFY_X509_PARTIAL_CHAIN
 sslcontext.load_cert_chain(MYSERV_FULLCHAIN, MYSERV_PRIVKEY)
+#returns 2186428625 557056 for Python-3.13.2
+#print(sslcontext.options, sslcontext.verify_flags)
 
 class HSTSHandler(SimpleHTTPRequestHandler):
     def send_head(self):
@@ -118,7 +121,8 @@ class CustomIndexer(SimpleHTTPRequestHandler):
                 HTTPStatus.NOT_FOUND,
                 "No permission to list directory")
             return None
-        list.sort(key=lambda a: a.lower())
+        #list.sort(key=lambda a: a.lower())
+        list.sort(key=lambda a: os.path.splitext(a)[::-1])
         r = []
         try:
             displaypath = urllib.parse.unquote(self.path,
