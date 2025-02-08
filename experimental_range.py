@@ -10,6 +10,8 @@ MYSERV_WORKDIR = "/media/kingdian/server_priv"
 MYSERV_FULLCHAIN = "/home/ran/keys/fullchain.pem"
 MYSERV_PRIVKEY = "/home/ran/keys/privkey.pem"
 
+domain_prefix = "https://subdomain.domain.tld/someworkdir/"
+
 global sslcontext
 sslcontext = ssl.create_default_context(purpose=ssl.Purpose.CLIENT_AUTH)
 sslcontext.options |= ssl.OP_NO_TICKET
@@ -79,19 +81,22 @@ class HSTSHandler(SimpleHTTPRequestHandler):
         return f
 
     def copyfile(self, infile, outfile):
-        if 'Range' not in self.headers:
-            SimpleHTTPRequestHandler.copyfile(self, infile, outfile)
+        try:
+            if 'Range' not in self.headers:
+                SimpleHTTPRequestHandler.copyfile(self, infile, outfile)
+                return
+            start, end = self.range
+            infile.seek(start)
+            bufsize = 64 * 1024
+            remainder = (end - start) % bufsize
+            times = int((end - start) / bufsize)
+            steps = [bufsize] * times + [remainder]
+            for astep in steps:
+                buf = infile.read(bufsize)
+                outfile.write(buf)
             return
-        start, end = self.range
-        infile.seek(start)
-        bufsize = 64 * 1024
-        remainder = (end - start) % bufsize
-        times = int((end - start) / bufsize)
-        steps = [bufsize] * times + [remainder]
-        for astep in steps:
-            buf = infile.read(bufsize)
-            outfile.write(buf)
-        return
+        except BrokenPipeError:
+            pass#clients disconnecting is normal
 
     def end_headers(self):
         self.send_header("Strict-Transport-Security", "max-age=63072000; includeSubDomains; preload")
@@ -128,22 +133,23 @@ class CustomIndexer(SimpleHTTPRequestHandler):
             displaypath = urllib.parse.unquote(self.path,
                                                errors='surrogatepass')
         except UnicodeDecodeError:
-            displaypath = urllib.parse.unquote(path)
+            displaypath = urllib.parse.unquote(self.path)
         displaypath = html.escape(displaypath, quote=False)
         enc = sys.getfilesystemencoding()
-        title = 'Directory listing for %s' % displaypath
-        r.append('<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" '
-                 '"http://www.w3.org/TR/html4/strict.dtd">')
-        r.append('<html>\n<head>')
-        r.append('<meta http-equiv="Content-Type" '
-                 'content="text/html; charset=%s">' % enc)
-        r.append('<title>%s</title>\n</head>' % title)
-        r.append('<body>\n<h1>%s</h1>' % title)
+        title = f'Directory listing for {displaypath}'
+        r.append('<!DOCTYPE HTML>')
+        r.append('<html lang="en">')
+        r.append('<head>')
+        r.append(f'<meta charset="{enc}">')
+        r.append('<style type="text/css">\n:root {\ncolor-scheme: light dark;\n}\n</style>')
+        r.append(f'<title>{title}</title>\n</head>')
+        r.append(f'<body>\n<h1>{title}</h1>')
         r.append('<hr>\n<ul>')
         for name in list:
             fullname = os.path.join(path, name)
+            displayname = linkname = name
             if os.path.isdir(fullname) == False:
-                customname = "https://subdomain.domain.tld/someworkdir/" + urllib.parse.quote(name)
+                customname = domain_prefix + urllib.parse.quote(name,errors='surrogatepass')
                 r.append('<a href="%s">%s</a><br>'
                         % (customname,customname))
         r.append('</ul>\n<hr>\n</body>\n</html>\n')
@@ -166,9 +172,6 @@ def main():
         my_server.socket = sslcontext.wrap_socket(my_server.socket, do_handshake_on_connect=True, server_side=True)
         print('Starting server, use <Ctrl-C> to stop')
         my_server.serve_forever()
-    except Exception as e:#except (ConnectionResetError, ConnectionAbortedError, BrokenPipeError, TimeoutError, ssl.SSLError):
-        print(type(e))
-        pass
     except KeyboardInterrupt:
         print(' received, shutting down server')
         my_server.shutdown()
