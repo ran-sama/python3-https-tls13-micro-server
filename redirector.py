@@ -4,14 +4,7 @@ import os
 from socketserver import ThreadingMixIn
 from http.server import SimpleHTTPRequestHandler, HTTPServer
 
-MYSERV_ACMEWEBDIR = "/home/ran/.acmeweb"
-allowed_hosts = ['example.com', 'www.example.com', 'ran.example.com', 'chen.example.com']
-
-def bot_redirector(received_host):
-    if received_host in allowed_hosts: 
-        return True, received_host
-    else:
-        return False, ''
+MYSERV_ACMEWEBDIR = "/home/ran/.acmeweb"#must exist to run the script
 
 class RedirectHandler(SimpleHTTPRequestHandler):
     def do_HEAD(self):
@@ -23,17 +16,10 @@ class RedirectHandler(SimpleHTTPRequestHandler):
             if 'Host' in self.headers:
                 my_host = self.headers.get('Host').split(':')[0]
                 my_path = self.path
-            not_a_bot, received_host = bot_redirector(my_host)
-            if not_a_bot == True:
-                self.send_response(301)#redirect all other requests
-                self.send_header("Location", "https://" + received_host + my_path)
-                self.send_header("Content-Length", "0")
-                SimpleHTTPRequestHandler.end_headers(self)
-            if not_a_bot == False:
-                self.send_response(400)#disconnect on requests without hostname
-                self.send_header('Connection', 'close')
-                self.send_header("Content-Length", "0")
-                SimpleHTTPRequestHandler.end_headers(self)
+            self.send_response(301)#redirect all other requests
+            self.send_header("Location", "https://" + my_host + my_path)
+            self.send_header("Content-Length", "0")
+            SimpleHTTPRequestHandler.end_headers(self)
 
     def do_GET(self):
         if self.path.startswith("/.well-known"):#only serve acme challenges
@@ -44,17 +30,10 @@ class RedirectHandler(SimpleHTTPRequestHandler):
             if 'Host' in self.headers:
                 my_host = self.headers.get('Host').split(':')[0]
                 my_path = self.path
-            not_a_bot, received_host = bot_redirector(my_host)
-            if not_a_bot == True:
-                self.send_response(301)#redirect all other requests
-                self.send_header("Location", "https://" + received_host + my_path)
-                self.send_header("Content-Length", "0")
-                SimpleHTTPRequestHandler.end_headers(self)
-            if not_a_bot == False:
-                self.send_response(400)#disconnect on requests without hostname
-                self.send_header('Connection', 'close')
-                self.send_header("Content-Length", "0")
-                SimpleHTTPRequestHandler.end_headers(self)
+            self.send_response(301)#redirect all other requests
+            self.send_header("Location", "https://" + my_host + my_path)
+            self.send_header("Content-Length", "0")
+            SimpleHTTPRequestHandler.end_headers(self)
 
 class ThreadedHTTPServer(ThreadingMixIn, HTTPServer):
     daemon_threads = True
