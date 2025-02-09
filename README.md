@@ -145,12 +145,6 @@ Every 2nd odd month:
 Every 2nd even month:
 [https://crontab.guru/#0_4_2_2-12/2_*](https://crontab.guru/#0_4_2_2-12/2_*)
 
-## But I'd like DNS CAA and wildcard certs
-
-You might enjoy dynv6, a fully free dynamic DNS provider that supports CAA records:  
-https://github.com/ran-sama/python3-CAA-A-records-dynv6  
-https://github.com/ran-sama/python3-certbot-virtualenv-dynv6  
-
 ## Documentation
 
 https://docs.python.org/3.14/library/ssl.html  
