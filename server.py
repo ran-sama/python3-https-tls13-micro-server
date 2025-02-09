@@ -15,23 +15,26 @@ MYSERV_WORKDIR = "/media/kingdian/server_pub"
 MYSERV_FULLCHAIN = "/home/ran/.acme.sh/example.com_ecc/fullchain.cer"
 MYSERV_PRIVKEY = "/home/ran/.acme.sh/example.com_ecc/example.com.key"
 
-global sslcontext
-sslcontext = ssl.create_default_context(purpose=ssl.Purpose.CLIENT_AUTH)
-sslcontext.options |= ssl.OP_NO_TICKET
-sslcontext.options |= ssl.OP_NO_COMPRESSION
-sslcontext.options |= ssl.OP_SINGLE_ECDH_USE
-sslcontext.options |= ssl.OP_IGNORE_UNEXPECTED_EOF
-sslcontext.options |= ssl.PROTOCOL_TLS_SERVER
-# sslcontext.verify_mode = ssl.CERT_REQUIRED
-sslcontext.set_ciphers("ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305")
-sslcontext.set_ecdh_curve("secp384r1")  # works well with everything
-# sslcontext.set_ecdh_curve("secp521r1")  # works well on firefox and wget but not aria2
-# sslcontext.load_verify_locations(MYSERV_CLIENTCRT)
-# sslcontext.verify_flags &= ~ssl.VERIFY_X509_STRICT
-# sslcontext.verify_flags |= ssl.VERIFY_X509_PARTIAL_CHAIN
-sslcontext.load_cert_chain(MYSERV_FULLCHAIN, MYSERV_PRIVKEY)
-# diagnostic data 2186428625 2 557056 for Python-3.13.2
-# print(sslcontext.options, sslcontext.verify_mode, sslcontext.verify_flags)
+
+def create_ctx():
+    """Create default context"""
+    sslcontext = ssl.create_default_context(purpose=ssl.Purpose.CLIENT_AUTH)
+    sslcontext.options |= ssl.OP_NO_TICKET
+    sslcontext.options |= ssl.OP_NO_COMPRESSION
+    sslcontext.options |= ssl.OP_SINGLE_ECDH_USE
+    sslcontext.options |= ssl.OP_IGNORE_UNEXPECTED_EOF
+    sslcontext.options |= ssl.PROTOCOL_TLS_SERVER
+    # sslcontext.verify_mode = ssl.CERT_REQUIRED
+    sslcontext.set_ciphers("ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305")
+    sslcontext.set_ecdh_curve("secp384r1")  # works well with everything
+    # sslcontext.set_ecdh_curve("secp521r1")  # works well on firefox and wget but not aria2
+    # sslcontext.load_verify_locations(MYSERV_CLIENTCRT)
+    # sslcontext.verify_flags &= ~ssl.VERIFY_X509_STRICT
+    # sslcontext.verify_flags |= ssl.VERIFY_X509_PARTIAL_CHAIN
+    sslcontext.load_cert_chain(MYSERV_FULLCHAIN, MYSERV_PRIVKEY)
+    # diagnostic data 2186428625 2 557056 for Python-3.13.2
+    # print(sslcontext.options, sslcontext.verify_mode, sslcontext.verify_flags)
+    return sslcontext
 
 
 class HSTSHandler(SimpleHTTPRequestHandler):
@@ -68,7 +71,8 @@ def main():
         SimpleHTTPRequestHandler.sys_version = ""  # empty version string
         SimpleHTTPRequestHandler.server_version = "nginx"  # pretend to be nginx
         my_server = ThreadedHTTPServer(('0.0.0.0', 443), HSTSHandler)
-        my_server.socket = sslcontext.wrap_socket(my_server.socket, do_handshake_on_connect=False, server_side=True, suppress_ragged_eofs=True)
+        tlscontext = create_ctx()
+        my_server.socket = tlscontext.wrap_socket(my_server.socket, do_handshake_on_connect=False, server_side=True, suppress_ragged_eofs=True)
         print('Starting server, use <Ctrl-C> to stop')
         my_server.serve_forever()
     except (ConnectionResetError, ConnectionAbortedError, BrokenPipeError, TimeoutError):
