@@ -19,25 +19,28 @@ MYSERV_WORKDIR = "/media/kingdian/server_priv"
 MYSERV_FULLCHAIN = "/home/ran/keys/fullchain.pem"
 MYSERV_PRIVKEY = "/home/ran/keys/privkey.pem"
 
-domain_prefix = "https://subdomain.domain.tld/someworkdir/"
+DOMAIN_PREFIX = "https://subdomain.domain.tld/someworkdir/"
 
-global sslcontext
-sslcontext = ssl.create_default_context(purpose=ssl.Purpose.CLIENT_AUTH)
-sslcontext.options |= ssl.OP_NO_TICKET
-sslcontext.options |= ssl.OP_NO_COMPRESSION
-sslcontext.options |= ssl.OP_SINGLE_ECDH_USE
-sslcontext.options |= ssl.OP_IGNORE_UNEXPECTED_EOF
-sslcontext.options |= ssl.PROTOCOL_TLS_SERVER
-# sslcontext.verify_mode = ssl.CERT_REQUIRED
-sslcontext.set_ciphers("ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305")
-# sslcontext.set_ecdh_curve("secp384r1")#works well with everything
-# sslcontext.set_ecdh_curve("secp521r1")#works well on firefox and wget but not aria2
-# sslcontext.load_verify_locations(MYSERV_CLIENTCRT)
-# sslcontext.verify_flags &= ~ssl.VERIFY_X509_STRICT
-# sslcontext.verify_flags |= ssl.VERIFY_X509_PARTIAL_CHAIN
-sslcontext.load_cert_chain(MYSERV_FULLCHAIN, MYSERV_PRIVKEY)
-# diagnostic data 2186428625 2 557056 for Python-3.13.2
-# print(sslcontext.options, sslcontext.verify_mode, sslcontext.verify_flags)
+
+def create_ctx():
+    """Create default context"""
+    sslcontext = ssl.create_default_context(purpose=ssl.Purpose.CLIENT_AUTH)
+    sslcontext.options |= ssl.OP_NO_TICKET
+    sslcontext.options |= ssl.OP_NO_COMPRESSION
+    sslcontext.options |= ssl.OP_SINGLE_ECDH_USE
+    sslcontext.options |= ssl.OP_IGNORE_UNEXPECTED_EOF
+    sslcontext.options |= ssl.PROTOCOL_TLS_SERVER
+    # sslcontext.verify_mode = ssl.CERT_REQUIRED
+    sslcontext.set_ciphers("ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305")
+    # sslcontext.set_ecdh_curve("secp384r1")#works well with everything
+    # sslcontext.set_ecdh_curve("secp521r1")#works well on firefox and wget but not aria2
+    # sslcontext.load_verify_locations(MYSERV_CLIENTCRT)
+    # sslcontext.verify_flags &= ~ssl.VERIFY_X509_STRICT
+    # sslcontext.verify_flags |= ssl.VERIFY_X509_PARTIAL_CHAIN
+    sslcontext.load_cert_chain(MYSERV_FULLCHAIN, MYSERV_PRIVKEY)
+    # diagnostic data 2186428625 2 557056 for Python-3.13.2
+    # print(sslcontext.options, sslcontext.verify_mode, sslcontext.verify_flags)
+    return sslcontext
 
 
 class HSTSHandler(SimpleHTTPRequestHandler):
@@ -92,21 +95,22 @@ class HSTSHandler(SimpleHTTPRequestHandler):
         self.end_headers()
         return f
 
-    def copyfile(self, infile, outfile):
+    def copyfile(self, source, outputfile):
         """Start a ranged file transfer"""
         try:
             if 'Range' not in self.headers:
-                SimpleHTTPRequestHandler.copyfile(self, infile, outfile)
-            start, end = self.range
-            bufsize = 64 * 1024  # 16k (1990), 64k (2019), 128k (discussed), 256k (2024)
-            length = end - start + 1
-            infile.seek(start)
-            while length > 0:
-                buf = infile.read(min(length, bufsize))
-                if not buf:
-                    break
-                length -= len(buf)
-                outfile.write(buf)
+                SimpleHTTPRequestHandler.copyfile(self, source, outputfile)
+            if 'Range' in self.headers:
+                start, end = self.range
+                bufsize = 64 * 1024  # 16k (1990), 64k (2019), 128k (discussed), 256k (2024)
+                length = end - start + 1
+                source.seek(start)
+                while length > 0:
+                    buf = source.read(min(length, bufsize))
+                    if not buf:
+                        break
+                    length -= len(buf)
+                    outputfile.write(buf)
         except BrokenPipeError:
             pass  # clients disconnecting is normal
 
@@ -139,14 +143,14 @@ class CustomIndexer(SimpleHTTPRequestHandler):
     def list_directory(self, path):
         """Create custom escaped index"""
         try:
-            list = os.listdir(path)
+            dirlist = os.listdir(path)
         except OSError:
             self.send_error(
                 HTTPStatus.NOT_FOUND,
                 "No permission to list directory")
             return None
-        # list.sort(key=lambda a: a.lower())
-        list.sort(key=lambda a: os.path.splitext(a)[::-1])
+        # dirlist.sort(key=lambda a: a.lower())
+        dirlist.sort(key=lambda a: os.path.splitext(a)[::-1])
         r = []
         try:
             displaypath = urllib.parse.unquote(self.path,
@@ -164,7 +168,7 @@ class CustomIndexer(SimpleHTTPRequestHandler):
         r.append(f'<title>{title}</title>\n</head>')
         r.append(f'<body>\n<h1>{title}</h1>')
         r.append('<hr>\n<ul>')
-        for name in list:
+        for name in dirlist:
             fullname = os.path.join(path, name)
             if os.path.isdir(fullname) is False:
                 customname = DOMAIN_PREFIX + urllib.parse.quote(name, errors='surrogatepass')
@@ -190,7 +194,8 @@ def main():
         SimpleHTTPRequestHandler.sys_version = ""  # empty version string
         SimpleHTTPRequestHandler.server_version = "nginx"  # pretend to be nginx
         my_server = ThreadedHTTPServer(('0.0.0.0', 443), HSTSHandler)
-        my_server.socket = sslcontext.wrap_socket(my_server.socket, do_handshake_on_connect=False, server_side=True, suppress_ragged_eofs=True)
+        tlscontext = create_ctx()
+        my_server.socket = tlscontext.wrap_socket(my_server.socket, do_handshake_on_connect=False, server_side=True, suppress_ragged_eofs=True)
         print('Starting server, use <Ctrl-C> to stop')
         my_server.serve_forever()
     except (ConnectionResetError, ConnectionAbortedError, BrokenPipeError, TimeoutError) as e:
