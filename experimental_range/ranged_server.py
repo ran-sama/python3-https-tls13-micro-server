@@ -925,21 +925,18 @@ class SimpleHTTPRequestHandler(BaseHTTPRequestHandler):
         to copy binary data as well.
 
         """
-        try:
-            if range is None:
-                shutil.copyfileobj(source, outputfile)
-            else:
-                start, end = range
-                length = end - start + 1
-                source.seek(start)
-                while length > 0:
-                    buf = source.read(min(length, shutil.COPY_BUFSIZE))
-                    if not buf:
-                        raise EOFError('File shrank after size was checked')
-                    length -= len(buf)
-                    outputfile.write(buf)
-        except (BrokenPipeError, ConnectionResetError):
-            pass  # clients disconnecting is normal
+        if range is None:
+            shutil.copyfileobj(source, outputfile)
+        else:
+            start, end = range
+            length = end - start + 1
+            source.seek(start)
+            while length > 0:
+                buf = source.read(min(length, shutil.COPY_BUFSIZE))
+                if not buf:
+                    raise EOFError('File shrank after size was checked')
+                length -= len(buf)
+                outputfile.write(buf)
 
     def guess_type(self, path):
         """Guess the type of a file.
