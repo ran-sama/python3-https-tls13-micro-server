@@ -9,6 +9,7 @@ import urllib.parse
 import html
 import sys
 import io
+import shutil
 from http import HTTPStatus
 from ranged_server import ThreadingHTTPServer  # from http.server import ThreadingHTTPServer
 from ranged_server import SimpleHTTPRequestHandler  # from http.server import SimpleHTTPRequestHandler
@@ -43,102 +44,12 @@ def create_ctx():
 
 
 class HSTSHandler(SimpleHTTPRequestHandler):
-    """Serve request types"""
-    def send_head(self):
-        """Common code for HEAD command"""
-        path = self.translate_path(self.path)
-        f = None
-        self._range = self.parse_range()
-        if os.path.isdir(path):
-            parts = urllib.parse.urlsplit(self.path)
-            if not parts.path.endswith('/'):
-                self.send_response(HTTPStatus.MOVED_PERMANENTLY)
-                new_parts = (parts[0], parts[1], parts[2] + '/',
-                             parts[3], parts[4])
-                new_url = urllib.parse.urlunsplit(new_parts)
-                self.send_header("Location", new_url)
-                self.send_header("Content-Length", "0")
-                self.end_headers()
-                return None
-            for index in self.index_pages:
-                index = os.path.join(path, index)
-                if os.path.isfile(index):
-                    path = index
-                    break
-            else:
-                return CustomIndexer.list_directory(self, path)
-        ctype = self.guess_type(path)
-        if path.endswith("/"):
-            self.send_error(HTTPStatus.NOT_FOUND, "File not found")
-            return None
-        try:
-            f = open(path, 'rb')
-        except OSError:
-            self.send_error(HTTPStatus.NOT_FOUND, "File not found")
-            return None
-        try:
-            fs = os.fstat(f.fileno())
-            if ("If-Modified-Since" in self.headers
-                    and "If-None-Match" not in self.headers):
-                try:
-                    ims = email.utils.parsedate_to_datetime(
-                        self.headers["If-Modified-Since"])
-                except (TypeError, IndexError, OverflowError, ValueError):
-                    pass
-                else:
-                    if ims.tzinfo is None:
-                        ims = ims.replace(tzinfo=datetime.timezone.utc)
-                    if ims.tzinfo is datetime.timezone.utc:
-                        last_modif = datetime.datetime.fromtimestamp(
-                            fs.st_mtime, datetime.timezone.utc)
-                        last_modif = last_modif.replace(microsecond=0)
-
-                        if last_modif <= ims:
-                            self.send_response(HTTPStatus.NOT_MODIFIED)
-                            self.end_headers()
-                            f.close()
-                            return None
-            if self._range:
-                start, end = self._range
-                if start is None:
-                    assert end is not None
-                    start = max(0, fs.st_size - end)
-                    end = fs.st_size - 1
-                elif end is None or end >= fs.st_size:
-                    end = fs.st_size - 1
-
-                if start == 0 and end >= fs.st_size - 1:
-                    self._range = None
-                elif start >= fs.st_size:
-                    f.close()
-                    headers = [('Content-Range', f'bytes */{fs.st_size}')]
-                    self.send_error(HTTPStatus.REQUESTED_RANGE_NOT_SATISFIABLE,
-                                    extra_headers=headers)
-                    return None
-            if self._range:
-                self.send_response(HTTPStatus.PARTIAL_CONTENT)
-                self.send_header("Content-Range",
-                    f"bytes {start}-{end}/{fs.st_size}")
-                self.send_header("Content-Length", str(end - start + 1))
-                self._range = (start, end)
-            else:
-                self.send_response(HTTPStatus.OK)
-                self.send_header("Accept-Ranges", "bytes")
-                self.send_header("Content-Length", str(fs.st_size))
-            self.send_header("Content-type", ctype)
-            self.send_header("Last-Modified",
-                self.date_time_string(fs.st_mtime))
-            self.end_headers()
-            return f
-        except:
-            f.close()
-            raise
-
+    """Replace function definitions with improved versions"""
     def end_headers(self):
         """Send state of the art headers"""
         self.send_header("Strict-Transport-Security", "max-age=63072000; includeSubDomains; preload")
-        # self.send_header("Content-Security-Policy", "default-src 'self'")
-        self.send_header("Content-Security-Policy", "default-src 'none'; img-src 'self'; script-src 'self'; font-src 'self'; style-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'")
+        self.send_header("Content-Security-Policy", "default-src 'self'")
+        # self.send_header("Content-Security-Policy", "default-src 'none'; img-src 'self'; script-src 'self'; font-src 'self'; style-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'")
         self.send_header("X-Content-Type-Options", "nosniff")
         self.send_header("X-Robots-Tag", "none")
         self.send_header("Permissions-Policy", "camera=(), microphone=()")
@@ -148,15 +59,8 @@ class HSTSHandler(SimpleHTTPRequestHandler):
         self.send_header("Referrer-Policy", "no-referrer")
         SimpleHTTPRequestHandler.end_headers(self)
 
-
-HSTSHandler.extensions_map['.avif'] = 'image/avif'
-HSTSHandler.extensions_map['.webp'] = 'image/webp'
-
-
-class CustomIndexer(SimpleHTTPRequestHandler):
-    """Overwrite indexer"""
     def list_directory(self, path):
-        """Create custom escaped index"""
+        """Overwrite list_directory with custom indexing"""
         try:
             dirlist = os.listdir(path)
         except OSError:
@@ -187,18 +91,46 @@ class CustomIndexer(SimpleHTTPRequestHandler):
             fullname = os.path.join(path, name)
             if os.path.isdir(fullname) is False:
                 customname = DOMAIN_PREFIX + urllib.parse.quote(name, errors='surrogatepass')
-                r.append('<a href="%s">%s</a><br>'
-                        % (customname, customname))
+                r.append(f'<a href="{customname}">{customname}</a><br>')
+        r.append('<br><br><textarea rows="40" cols="200">')
+        for name in dirlist:
+            fullname = os.path.join(path, name)
+            if os.path.isdir(fullname) is False:
+                customname = DOMAIN_PREFIX + urllib.parse.quote(name, errors='surrogatepass')
+                r.append(f'{customname}')
+        r.append('</textarea>')
         r.append('</ul>\n<hr>\n</body>\n</html>\n')
         encoded = '\n'.join(r).encode(enc, 'surrogateescape')
         f = io.BytesIO()
         f.write(encoded)
         f.seek(0)
         self.send_response(HTTPStatus.OK)
-        self.send_header("Content-type", "text/html; charset=%s" % enc)
+        self.send_header("Content-type", "text/html; charset={enc}")
         self.send_header("Content-Length", str(len(encoded)))
         self.end_headers()
         return f
+
+    def copyfile(self, source, outputfile, *, range=None):
+        """Overwrite copyfile with error handling"""
+        try:
+            if range is None:
+                shutil.copyfileobj(source, outputfile)
+            else:
+                start, end = range
+                length = end - start + 1
+                source.seek(start)
+                while length > 0:
+                    buf = source.read(min(length, shutil.COPY_BUFSIZE))
+                    if not buf:
+                        raise EOFError('File shrank after size was checked')
+                    length -= len(buf)
+                    outputfile.write(buf)
+        except (BrokenPipeError, ConnectionResetError):
+            pass  # clients disconnecting is normal
+
+
+HSTSHandler.extensions_map['.avif'] = 'image/avif'
+HSTSHandler.extensions_map['.webp'] = 'image/webp'
 
 
 def main():
