@@ -5,8 +5,8 @@
 
 import os
 import sys
-from socketserver import ThreadingMixIn
-from http.server import SimpleHTTPRequestHandler, HTTPServer
+from http.server import ThreadingHTTPServer
+from http.server import SimpleHTTPRequestHandler
 
 MYSERV_ACMEWEBDIR = "/home/ran/.acmeweb"  # must exist to run the script
 
@@ -44,11 +44,6 @@ class RedirectHandler(SimpleHTTPRequestHandler):
             SimpleHTTPRequestHandler.end_headers(self)
 
 
-class ThreadedHTTPServer(ThreadingMixIn, HTTPServer):
-    """Allow multi-threading"""
-    daemon_threads = True
-
-
 def main():
     """Start server"""
     try:
@@ -56,7 +51,7 @@ def main():
         os.chdir(MYSERV_ACMEWEBDIR)  # auto-change working directory
         SimpleHTTPRequestHandler.server_version = "nginx"  # pretend to be nginx
         SimpleHTTPRequestHandler.sys_version = ""  # empty version string
-        server = ThreadedHTTPServer(('0.0.0.0', 80), RedirectHandler)
+        server = ThreadingHTTPServer(('0.0.0.0', 80), RedirectHandler)
         print("Starting server, use <Ctrl-C> to stop")
         server.serve_forever()
     except (ConnectionResetError, ConnectionAbortedError, BrokenPipeError, TimeoutError) as e:
