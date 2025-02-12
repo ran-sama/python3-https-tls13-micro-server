@@ -7,8 +7,8 @@ import os
 import ssl
 import re
 import sys
-from socketserver import ThreadingMixIn
-from http.server import SimpleHTTPRequestHandler, HTTPServer
+from http.server import ThreadingHTTPServer
+from http.server import SimpleHTTPRequestHandler
 
 MYSERV_WORKDIR = "/media/kingdian/server_pub"
 # MYSERV_CLIENTCRT = "/home/ran/keys/client.pem"
@@ -58,11 +58,6 @@ HSTSHandler.extensions_map['.avif'] = 'image/avif'
 HSTSHandler.extensions_map['.webp'] = 'image/webp'
 
 
-class ThreadedHTTPServer(ThreadingMixIn, HTTPServer):
-    """Allow multi-threading"""
-    daemon_threads = True
-
-
 def main():
     """Initialize"""
     try:
@@ -70,7 +65,7 @@ def main():
         os.chdir(MYSERV_WORKDIR)  # auto-change working directory
         SimpleHTTPRequestHandler.sys_version = ""  # empty version string
         SimpleHTTPRequestHandler.server_version = "nginx"  # pretend to be nginx
-        my_server = ThreadedHTTPServer(('0.0.0.0', 443), HSTSHandler)
+        my_server = ThreadingHTTPServer(('0.0.0.0', 443), HSTSHandler)
         tlscontext = create_ctx()
         my_server.socket = tlscontext.wrap_socket(my_server.socket, do_handshake_on_connect=False, server_side=True, suppress_ragged_eofs=True)
         print('Starting server, use <Ctrl-C> to stop')
