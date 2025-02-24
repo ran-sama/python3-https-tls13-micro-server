@@ -32,8 +32,8 @@ def create_ctx():
     sslcontext.options |= ssl.PROTOCOL_TLS_SERVER
     sslcontext.verify_mode = ssl.CERT_REQUIRED
     sslcontext.set_ciphers("ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305")
-    # sslcontext.set_ecdh_curve("secp384r1")#works well with everything
-    # sslcontext.set_ecdh_curve("secp521r1")#works well on firefox and wget but not aria2
+    sslcontext.set_ecdh_curve("secp384r1")
+    # sslcontext.set_ecdh_curve("secp521r1")  # limited support
     sslcontext.load_verify_locations(MYSERV_CLIENTCRT)
     sslcontext.verify_flags &= ~ssl.VERIFY_X509_STRICT
     sslcontext.verify_flags |= ssl.VERIFY_X509_PARTIAL_CHAIN
