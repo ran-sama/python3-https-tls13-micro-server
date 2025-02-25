@@ -15,7 +15,7 @@ from ranged_server import ThreadingHTTPServer  # from http.server import Threadi
 from ranged_server import SimpleHTTPRequestHandler  # from http.server import SimpleHTTPRequestHandler
 
 MYSERV_WORKDIR = "/media/kingdian/server_priv"
-MYSERV_CLIENTCRT = "/home/ran/keys/client.pem"
+# MYSERV_CLIENTCRT = "/home/ran/keys/client.pem"
 MYSERV_FULLCHAIN = "/home/ran/keys/fullchain.pem"
 MYSERV_PRIVKEY = "/home/ran/keys/privkey.pem"
 
@@ -30,13 +30,13 @@ def create_ctx():
     sslcontext.options |= ssl.OP_SINGLE_ECDH_USE
     sslcontext.options |= ssl.OP_IGNORE_UNEXPECTED_EOF
     sslcontext.options |= ssl.PROTOCOL_TLS_SERVER
-    sslcontext.verify_mode = ssl.CERT_REQUIRED
+    # sslcontext.verify_mode = ssl.CERT_REQUIRED
     sslcontext.set_ciphers("ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305")
     sslcontext.set_ecdh_curve("secp384r1")
     # sslcontext.set_ecdh_curve("secp521r1")  # limited support
-    sslcontext.load_verify_locations(MYSERV_CLIENTCRT)
-    sslcontext.verify_flags &= ~ssl.VERIFY_X509_STRICT
-    sslcontext.verify_flags |= ssl.VERIFY_X509_PARTIAL_CHAIN
+    # sslcontext.load_verify_locations(MYSERV_CLIENTCRT)
+    # sslcontext.verify_flags &= ~ssl.VERIFY_X509_STRICT
+    # sslcontext.verify_flags |= ssl.VERIFY_X509_PARTIAL_CHAIN
     sslcontext.load_cert_chain(MYSERV_FULLCHAIN, MYSERV_PRIVKEY)
     # diagnostic data 2186428625 2 557056 for Python-3.13.2
     # print(sslcontext.options, sslcontext.verify_mode, sslcontext.verify_flags)
