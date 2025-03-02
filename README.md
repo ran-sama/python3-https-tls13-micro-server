@@ -58,6 +58,8 @@ MinProtocol = DTLSv1.2
 CipherString = ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305
 # Sets the available ciphersuites for TLSv1.3
 Ciphersuites = TLS_AES_256_GCM_SHA384:TLS_CHACHA20_POLY1305_SHA256
+# KEX and KEM groups
+Groups = secp521r1:secp384r1
 ```
 
 This workaround is still required until either Python >3.13 or OpenSSL will fix the set_ciphers() function:
